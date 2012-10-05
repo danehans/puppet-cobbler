@@ -1,3 +1,5 @@
+# This is the original cobbler::node class that requires a static $ip to be specified.
+# The new cobbler::node class levergaes puppet to configure network interfaces.
 # Definition: cobbler::node
 #
 # This class installs a node into the cobbler system.  Cobbler needs to be included
@@ -6,6 +8,7 @@
 # Parameters:
 # - $mac Mac address of the eth0 interface
 # - $profile Cobbler profile to assign
+# - $ip IP address to assign to eth0
 # - $domain Domain name to add to the resource name
 # - $preseed Cobbler/Ubuntu preseed/kickstart file for the node
 # - $power_address = "" Power management address for the node
@@ -22,6 +25,7 @@
 # cobbler::node { "sdu-os-1":
 #  mac => "00:25:b5:00:00:08",
 #  profile => "precise-x86_64-auto",
+#  ip => "192.168.100.101",
 #  domain => "sdu.lab",
 #  preseed => "/etc/cobbler/cisco-preseed",
 #  power_address => "192.168.26.15:org-SDU",
@@ -34,10 +38,11 @@
 #  extra_host_alises => ["nova", "keystone", "glance", "horizon"]
 # }
 #
-define cobbler::node(
+define cobbler::node_orig(
 	$mac,
 	$profile,
-	$domain,
+	$ip = "",
+	$domain = "",
 	$preseed,
 	$power_address = "",
 	$power_type = "",
@@ -69,7 +74,7 @@ define cobbler::node(
         } else {
             $serial_opt = ""
         }
-	$net_settings="priority=critical"
+	$net_settings="priority=critical netcfg/disable_autoconfig=true netcfg/dhcp_failed=true netcfg/dhcp_options=\"'\"'\"'Configure network manually'\"'\"'\" netcfg/get_nameservers=${cobbler::node_dns} netcfg/get_ipaddress=${ip} netcfg/get_netmask=${cobbler::node_netmask} ${gateway_opt} netcfg/confirm_static=true"
                     #cobbler system \\\${action} --name='${name}' --mac-address='${mac}' --profile='${profile}' --ip-address=${ip} --dns-name='${name}.${domain}' --hostname='${name}.${domain}' --kickstart='${preseed}' --kopts='netcfg/disable_autoconfig=true netcfg/dhcp_failed=true netcfg/dhcp_options=\"'\"'\"'Configure network manually'\"'\"'\" netcfg/get_nameservers=${cobbler::node_dns} netcfg/get_ipaddress=${ip} netcfg/get_netmask=${cobbler::node_netmask} ${gateway_opt} netcfg/confirm_static=true partman-auto/disk=${boot_disk} ${log_opt}' --power-user=${power_user} --power-address=${power_address} --power-pass=${power_password} --power-id=${power_id} --power-type=${power_type} \\\${extra_opts}",
 	exec { "cobbler-add-node-${name}":
 		command => "if cobbler system list | grep ${name};
@@ -80,7 +85,7 @@ define cobbler::node(
                         action=add;
                         extra_opts=--netboot-enabled=true;
                     fi;
-                    cobbler system \\\${action} --name='${name}' --mac-address='${mac}' --profile='${profile}' --dns-name='${name}.${domain}' --hostname='${name}.${domain}' --kickstart='${preseed}' --kopts='$net_settings partman-auto/disk=${boot_disk} ${log_opt} ${serial_opt}' --power-user=${power_user} --power-address=${power_address} --power-pass=${power_password} --power-id=${power_id} --power-type=${power_type} \\\${extra_opts}",
+                    cobbler system \\\${action} --name='${name}' --mac-address='${mac}' --profile='${profile}' --ip-address=${ip} --dns-name='${name}.${domain}' --hostname='${name}.${domain}' --kickstart='${preseed}' --kopts='$net_settings partman-auto/disk=${boot_disk} ${log_opt} ${serial_opt}' --power-user=${power_user} --power-address=${power_address} --power-pass=${power_password} --power-id=${power_id} --power-type=${power_type} \\\${extra_opts}",
 		provider => shell,
 		path => "/usr/bin:/bin",
 		require => Package[cobbler],
@@ -88,10 +93,10 @@ define cobbler::node(
 		before => Exec["restart-cobbler"]
 	}
 
-    #if ( $add_hosts_entry ) {
-    #    host { "${name}.${domain}":
-    #        ip => "${ip}",
-    #        host_aliases => flatten(["${name}", $extra_host_aliases])
-    #    }
-    #}
+    if ( $add_hosts_entry ) {
+        host { "${name}.${domain}":
+            ip => "${ip}",
+            host_aliases => flatten(["${name}", $extra_host_aliases])
+        }
+    }
 }

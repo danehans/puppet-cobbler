@@ -1,4 +1,5 @@
-# Definition: cobbler::node
+# This module is currently non-operational
+# Definition: cobbler::node_multi_int
 #
 # This class installs a node into the cobbler system.  Cobbler needs to be included
 # in a toplevel node definition for this to be useful.
@@ -40,7 +41,8 @@ define cobbler::node_multi_int(
 	$pub_int = "eth1",
 	$pub_subnet = "255.255.255.0",
 	$mgt_mac,
-	$mgt_int = "eth0",
+        $pub_mac,
+ 	$mgt_int = "eth0",
 	$profile,
 	$mgt_ip,
 	$static = "1",
